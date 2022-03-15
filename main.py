@@ -1,9 +1,12 @@
 import time
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel
-from fastapi import BackgroundTasks, FastAPI
+from fastapi import FastAPI, File, UploadFile, BackgroundTasks
+from typing import List
+import time
 import asyncio
-
+import ocr
+import utils
 
 class Course(BaseModel):
     name: str
@@ -80,3 +83,18 @@ def send_notification(email: str, background_tasks: BackgroundTasks):
     background_tasks.add_task(
         write_notification, email, message="some notification")
     return {"message": "Notification sent in the background"}
+
+
+@app.post("/api/v1/extract_text")
+async def extract_text(Images: List[UploadFile] = File(...)):
+    response = {}
+    s = time.time()
+    for img in Images:
+        print("Images Uploaded: ", img.filename)
+        temp_file = utils._save_file_to_server(
+            img, path="./", save_as=img.filename)
+        text = await ocr.read_image(temp_file)
+        response[img.filename] = text
+    response["Time Taken"] = round((time.time() - s), 2)
+
+    return response
